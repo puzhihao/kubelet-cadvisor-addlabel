@@ -1,0 +1,112 @@
+# 所有资源都部署在 metrics-proxy 命名空间中
+
+---
+# Namespace 配置
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: metrics-proxy
+
+---
+# ServiceAccount 配置
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubelet-cadvisor-addlabel
+  namespace: metrics-proxy
+---
+# ClusterRole 配置 - 定义所需权限
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubelet-cadvisor-addlabel
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "nodes", "nodes/metrics", "nodes/stats", "nodes/proxy"]
+    verbs: ["get", "list", "watch"]
+---
+# ClusterRoleBinding 配置
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubelet-cadvisor-addlabel
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubelet-cadvisor-addlabel
+subjects:
+- kind: ServiceAccount
+  name: kubelet-cadvisor-addlabel
+  namespace: metrics-proxy
+---
+# Deployment 配置
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubelet-cadvisor-addlabel
+  namespace: metrics-proxy
+  labels:
+    app: kubelet-cadvisor-addlabel
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kubelet-cadvisor-addlabel
+  template:
+    metadata:
+      labels:
+        app: kubelet-cadvisor-addlabel
+    spec:
+      serviceAccountName: kubelet-cadvisor-addlabel
+      containers:
+      - name: kubelet-cadvisor-addlabel
+        image: registry.cn-shanghai.aliyuncs.com/puzhihao/kubelet-cadvisor-addlabel:v0.0.3
+        ports:
+        - containerPort: 9090
+        env:
+        - name: PORT
+          value: "9090"
+        - name: LOG_LEVEL
+          value: "info"
+        - name: ADD_LABELS
+          value: "app"
+        - name: LABEL_DEFAULTS
+          value: "unknown"
+        - name: FETCH_INTERVAL
+          value: "30"
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 9090
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 9090
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+# Service 配置 - 集群内部访问
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubelet-cadvisor-addlabel
+  namespace: metrics-proxy
+  labels:
+    app: kubelet-cadvisor-addlabel
+spec:
+  selector:
+    app: kubelet-cadvisor-addlabel
+  ports:
+  - port: 9090
+    targetPort: 9090
+    protocol: TCP
+  type: NodePort
