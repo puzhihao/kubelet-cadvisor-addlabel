@@ -45,12 +45,12 @@ cd kubelet-cadvisor-addlabel
 
 2. 构建项目：
 ```bash
-go build -o kubelet-demo ./cmd/
+go build -o kubelet-cadvisor-addlabel ./cmd/
 ```
 
 3. 运行应用：
 ```bash
-./kubelet-demo
+./kubelet-cadvisor-addlabel
 ```
 
 ### 配置说明
@@ -111,13 +111,13 @@ container_cpu_load_average_10s{container="app",id="/path/to/container",namespace
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: kubelet-demo
+  name: kubelet-cadvisor-addlabel
   namespace: default
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: kubelet-demo
+  name: kubelet-cadvisor-addlabel
 rules:
 - apiGroups: [""]
   resources: ["pods", "nodes"]
@@ -126,7 +126,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: kubelet-demo
+  name: kubelet-cadvisor-addlabel
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
