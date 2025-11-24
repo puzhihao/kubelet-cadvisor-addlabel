@@ -30,7 +30,7 @@ func New(cfg *config.Config, factory informers.SharedInformerFactory) *Applicati
 	return &Application{
 		cfg:           cfg,
 		service:       service,
-		collector:     metrics.NewCollector(service, cfg.TokenFile),
+		collector:     metrics.NewCollector(service, cfg.TokenFile, cfg.CACertFile, cfg.InsecureSkipVerify),
 		httpServer:    server.NewMetricsServer(cfg.Port),
 		fetchInterval: time.Duration(cfg.FetchInterval) * time.Second,
 	}

@@ -12,7 +12,9 @@ import (
 // NewInformerFactory creates a shared informer factory that works both
 // in-cluster and out of cluster.
 func NewInformerFactory() (informers.SharedInformerFactory, error) {
-	cfg, err := clientcmd.BuildConfigFromFlags("", clientcmd.RecommendedHomeFile)
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+	overrides := &clientcmd.ConfigOverrides{}
+	cfg, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, overrides).ClientConfig()
 	if err != nil {
 		cfg, err = rest.InClusterConfig()
 		if err != nil {

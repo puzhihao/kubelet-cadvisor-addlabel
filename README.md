@@ -63,6 +63,9 @@ go build -o kubelet-demo ./cmd/
 | `LOG_LEVEL` | info | 日志级别 (debug, info, warn, error) |
 | `ADD_LABELS` | app | 要添加的标签列表，逗号分隔 |
 | `LABEL_DEFAULTS` | test | 标签默认值，支持单值或键值对格式 |
+| `TOKEN_FILE` | `/var/run/secrets/kubernetes.io/serviceaccount/token` | 访问 kubelet 的 ServiceAccount Token 路径 |
+| `CA_CERT_FILE` | `/var/run/secrets/kubernetes.io/serviceaccount/ca.crt` | kubelet API 的 CA 证书路径 |
+| `INSECURE_SKIP_VERIFY` | false | 是否跳过 kubelet HTTPS 证书校验（不建议开启） |
 | `FETCH_INTERVAL` | 30 | 指标抓取间隔（秒） |
 
 **标签配置示例：**

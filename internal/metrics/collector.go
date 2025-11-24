@@ -3,6 +3,7 @@ package metrics
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,35 +17,36 @@ import (
 )
 
 const (
-	defaultRequestTimeout = 8 * time.Second
-	cadvisorEndpoint      = "https://%s:10250/metrics/cadvisor"
+	defaultRequestTimeout       = 8 * time.Second
+	defaultMaxConcurrentScrapes = 10
+	cadvisorEndpoint            = "https://%s:10250/metrics/cadvisor"
 )
 
 // Collector fetches metrics from kubelet cadvisor endpoints and decorates the
 // payload with configured labels.
 type Collector struct {
-	service   *Service
-	tokenFile string
-	client    *http.Client
-	processor *LabelProcessor
+	service              *Service
+	tokenFile            string
+	caFile               string
+	insecureSkipVerify   bool
+	client               *http.Client
+	processor            *LabelProcessor
+	maxConcurrentScrapes int
 }
 
 // NewCollector returns a Collector backed by the provided service cache.
-func NewCollector(service *Service, tokenFile string) *Collector {
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: true, // kubernetes clusters typically use a self-signed cert
-		},
-	}
+func NewCollector(service *Service, tokenFile, caFile string, insecureSkipVerify bool) *Collector {
+	tlsConfig := buildTLSConfig(caFile, insecureSkipVerify)
+	tr := &http.Transport{TLSClientConfig: tlsConfig}
 
 	return &Collector{
-		service:   service,
-		tokenFile: tokenFile,
-		client: &http.Client{
-			Timeout:   defaultRequestTimeout,
-			Transport: tr,
-		},
-		processor: NewLabelProcessor(),
+		service:              service,
+		tokenFile:            tokenFile,
+		caFile:               caFile,
+		insecureSkipVerify:   insecureSkipVerify,
+		client:               &http.Client{Timeout: defaultRequestTimeout, Transport: tr},
+		processor:            NewLabelProcessor(),
+		maxConcurrentScrapes: defaultMaxConcurrentScrapes,
 	}
 }
 
@@ -74,6 +76,11 @@ func (c *Collector) Collect(ctx context.Context, addLabels, labelDefaults string
 
 	var wg sync.WaitGroup
 	var mu sync.Mutex
+	maxWorkers := c.maxConcurrentScrapes
+	if maxWorkers <= 0 {
+		maxWorkers = 1
+	}
+	sem := make(chan struct{}, maxWorkers)
 
 	for _, ip := range nodeIPs {
 		ip := ip
@@ -81,6 +88,8 @@ func (c *Collector) Collect(ctx context.Context, addLabels, labelDefaults string
 
 		go func() {
 			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
 
 			data, err := c.fetchNode(ctx, ip, tokenString)
 			mu.Lock()
@@ -106,6 +115,9 @@ func (c *Collector) Collect(ctx context.Context, addLabels, labelDefaults string
 	}
 
 	payload := combineMetrics(results)
+	if len(failures) > 0 {
+		payload = annotateFailures(payload, failures)
+	}
 	klog.InfoS(
 		"cadvisor scrape completed",
 		"successes", len(results),
@@ -156,6 +168,35 @@ func (c *Collector) fetchNode(ctx context.Context, ip, token string) (string, er
 	return string(body), nil
 }
 
+func buildTLSConfig(caFile string, insecureSkipVerify bool) *tls.Config {
+	cfg := &tls.Config{
+		InsecureSkipVerify: insecureSkipVerify,
+	}
+
+	if caFile == "" || insecureSkipVerify {
+		return cfg
+	}
+
+	pool, err := x509.SystemCertPool()
+	if err != nil {
+		pool = x509.NewCertPool()
+	}
+
+	caData, err := os.ReadFile(caFile)
+	if err != nil {
+		klog.Warningf("unable to read CA certificate from %s: %v", caFile, err)
+		return cfg
+	}
+
+	if ok := pool.AppendCertsFromPEM(caData); !ok {
+		klog.Warningf("failed to append CA certificate from %s", caFile)
+		return cfg
+	}
+
+	cfg.RootCAs = pool
+	return cfg
+}
+
 func combineMetrics(data map[string]string) string {
 	if len(data) == 0 {
 		return ""
@@ -178,5 +219,29 @@ func combineMetrics(data map[string]string) string {
 		}
 	}
 
+	return b.String()
+}
+
+func annotateFailures(payload string, failures map[string]error) string {
+	if len(failures) == 0 {
+		return payload
+	}
+
+	ips := make([]string, 0, len(failures))
+	for ip := range failures {
+		ips = append(ips, ip)
+	}
+	sort.Strings(ips)
+
+	var parts []string
+	for _, ip := range ips {
+		parts = append(parts, fmt.Sprintf("%s=%v", ip, failures[ip]))
+	}
+
+	var b strings.Builder
+	b.WriteString("# scrape failures: ")
+	b.WriteString(strings.Join(parts, "; "))
+	b.WriteByte('\n')
+	b.WriteString(payload)
 	return b.String()
 }

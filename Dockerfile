@@ -22,7 +22,7 @@ RUN go mod download
 COPY . .
 
 # 编译二进制文件（静态构建）
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o kubelet-demo ./cmd/
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o kubelet-cadvisor-addlabel ./cmd/
 
 # ---------- 运行阶段 ----------
 FROM registry.cn-shanghai.aliyuncs.com/puzhihao/alpine:latest
@@ -38,10 +38,7 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 WORKDIR /root/
 
 # 从构建阶段复制二进制文件
-COPY --from=builder /app/kubelet-demo .
-
-# 复制 serviceaccount token（仅开发环境下使用）
-COPY --from=builder /app/token /var/run/secrets/kubernetes.io/serviceaccount/token
+COPY --from=builder /app/kubelet-cadvisor-addlabel .
 
 # 调整权限
 RUN chown -R appuser:appgroup /root/
@@ -57,4 +54,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:9090/health || exit 1
 
 # 启动应用
-CMD ["./kubelet-demo"]
+CMD ["./kubelet-cadvisor-addlabel"]

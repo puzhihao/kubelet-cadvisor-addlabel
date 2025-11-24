@@ -9,23 +9,27 @@ import (
 
 // Config captures the runtime parameters for the collector.
 type Config struct {
-	Port          int    `json:"port" env:"PORT"`
-	LogLevel      string `json:"log_level" env:"LOG_LEVEL"`
-	AddLabels     string `json:"add_labels" env:"ADD_LABELS"`
-	LabelDefaults string `json:"label_defaults" env:"LABEL_DEFAULTS"`
-	TokenFile     string `json:"token_file" env:"TOKEN_FILE"`
-	FetchInterval int    `json:"fetch_interval" env:"FETCH_INTERVAL"`
+	Port               int    `json:"port" env:"PORT"`
+	LogLevel           string `json:"log_level" env:"LOG_LEVEL"`
+	AddLabels          string `json:"add_labels" env:"ADD_LABELS"`
+	LabelDefaults      string `json:"label_defaults" env:"LABEL_DEFAULTS"`
+	TokenFile          string `json:"token_file" env:"TOKEN_FILE"`
+	CACertFile         string `json:"ca_cert_file" env:"CA_CERT_FILE"`
+	InsecureSkipVerify bool   `json:"insecure_skip_verify" env:"INSECURE_SKIP_VERIFY"`
+	FetchInterval      int    `json:"fetch_interval" env:"FETCH_INTERVAL"`
 }
 
 // NewConfig loads configuration from environment variables, falling back to sensible defaults.
 func NewConfig() *Config {
 	return &Config{
-		Port:          getEnvInt("PORT", 9090),
-		LogLevel:      getEnvString("LOG_LEVEL", "info"),
-		AddLabels:     getEnvString("ADD_LABELS", ""),
-		LabelDefaults: getEnvString("LABEL_DEFAULTS", "unknown"),
-		TokenFile:     getEnvString("TOKEN_FILE", "/var/run/secrets/kubernetes.io/serviceaccount/token"),
-		FetchInterval: getEnvInt("FETCH_INTERVAL", 30),
+		Port:               getEnvInt("PORT", 9090),
+		LogLevel:           getEnvString("LOG_LEVEL", "info"),
+		AddLabels:          getEnvString("ADD_LABELS", ""),
+		LabelDefaults:      getEnvString("LABEL_DEFAULTS", "unknown"),
+		TokenFile:          getEnvString("TOKEN_FILE", "/var/run/secrets/kubernetes.io/serviceaccount/token"),
+		CACertFile:         getEnvString("CA_CERT_FILE", "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"),
+		InsecureSkipVerify: getEnvBool("INSECURE_SKIP_VERIFY", false),
+		FetchInterval:      getEnvInt("FETCH_INTERVAL", 30),
 	}
 }
 
@@ -68,6 +72,15 @@ func getEnvString(key, defaultValue string) string {
 func getEnvInt(key string, defaultValue int) int {
 	if value := os.Getenv(key); value != "" {
 		if parsed, err := strconv.Atoi(value); err == nil {
+			return parsed
+		}
+	}
+	return defaultValue
+}
+
+func getEnvBool(key string, defaultValue bool) bool {
+	if value := os.Getenv(key); value != "" {
+		if parsed, err := strconv.ParseBool(value); err == nil {
 			return parsed
 		}
 	}

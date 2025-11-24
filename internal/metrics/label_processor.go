@@ -86,8 +86,12 @@ func (lp *LabelProcessor) processMetricLine(
 		}
 
 		head := mutated[:pos]
-		tail := strings.TrimSpace(mutated[pos+1:])
-		mutated = head + `,` + label + `="` + escapeLabelValue(value) + `"}` + tail
+		tail := mutated[pos+1:]
+		separator := ""
+		if len(tail) > 0 && tail[0] != ' ' && tail[0] != '\t' {
+			separator = " "
+		}
+		mutated = head + `,` + label + `="` + escapeLabelValue(value) + `"}` + separator + tail
 	}
 
 	return mutated
