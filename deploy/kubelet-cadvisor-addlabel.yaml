@@ -60,7 +60,7 @@ spec:
       serviceAccountName: kubelet-cadvisor-addlabel
       containers:
       - name: kubelet-cadvisor-addlabel
-        image: registry.cn-shanghai.aliyuncs.com/puzhihao/kubelet-cadvisor-addlabel:v0.0.3
+        image: registry.cn-shanghai.aliyuncs.com/puzhihao/kubelet-cadvisor-addlabel:v1.0.0
         ports:
         - containerPort: 9090
         env:
