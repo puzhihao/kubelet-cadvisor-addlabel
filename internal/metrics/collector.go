@@ -119,7 +119,7 @@ func (c *Collector) Collect(ctx context.Context, addLabels, labelDefaults string
 		payload = annotateFailures(payload, failures)
 	}
 
-	relationMetrics := buildRelationMetrics(c.service, splitLabels(addLabels))
+	relationMetrics := buildRelationMetrics(c.service, splitLabels(addLabels), parseLabelDefaults(labelDefaults))
 	if relationMetrics != "" {
 		if !strings.HasSuffix(payload, "\n") {
 			payload += "\n"

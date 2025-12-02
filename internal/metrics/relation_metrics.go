@@ -1,13 +1,14 @@
 package metrics
 
 import (
+	"sort"
 	"strconv"
 	"strings"
 )
 
 const relationMetricName = "kubelet_cadvisor_label_relation"
 
-func buildRelationMetrics(service *Service, labelKeys []string) string {
+func buildRelationMetrics(service *Service, labelKeys []string, defaults map[string]string) string {
 	if service == nil || len(labelKeys) == 0 {
 		return ""
 	}
@@ -21,10 +22,26 @@ func buildRelationMetrics(service *Service, labelKeys []string) string {
 			continue
 		}
 
-		values := service.UniqueLabelValues(key)
-		if len(values) == 0 {
+		set := make(map[string]struct{})
+		for _, value := range service.UniqueLabelValues(key) {
+			value = strings.TrimSpace(value)
+			if value != "" {
+				set[value] = struct{}{}
+			}
+		}
+		if def := relationDefaultValue(key, defaults); def != "" {
+			set[def] = struct{}{}
+		}
+
+		if len(set) == 0 {
 			continue
 		}
+
+		values := make([]string, 0, len(set))
+		for v := range set {
+			values = append(values, v)
+		}
+		sort.Strings(values)
 
 		if !metricsWritten {
 			builder.WriteString("# HELP ")
@@ -54,4 +71,16 @@ func buildRelationMetrics(service *Service, labelKeys []string) string {
 	}
 
 	return builder.String()
+}
+
+func relationDefaultValue(label string, defaults map[string]string) string {
+	if len(defaults) == 0 {
+		return ""
+	}
+
+	if value := strings.TrimSpace(defaults[label]); value != "" {
+		return value
+	}
+
+	return strings.TrimSpace(defaults["__global__"])
 }
