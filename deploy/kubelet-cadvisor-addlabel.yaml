@@ -74,6 +74,8 @@ spec:
           value: "unknown"
         - name: FETCH_INTERVAL
           value: "30"
+        - name: INSECURE_SKIP_VERIF
+          value: "true"
         resources:
           requests:
             memory: "64Mi"

@@ -168,10 +168,3 @@ func labelValue(label string, podLabels map[string]string, defaults map[string]s
 
 	return strings.TrimSpace(defaults["__global__"])
 }
-
-func escapeLabelValue(value string) string {
-	value = strings.ReplaceAll(value, `\`, `\\`)
-	value = strings.ReplaceAll(value, `"`, `\"`)
-	value = strings.ReplaceAll(value, "\n", `\n`)
-	return value
-}

@@ -2,6 +2,8 @@ package metrics
 
 import (
 	"fmt"
+	"sort"
+	"strings"
 	"sync"
 
 	"k8s.io/klog/v2"
@@ -44,6 +46,34 @@ func (c *Cache) NodeIPs() []string {
 	})
 
 	return ips
+}
+
+// UniqueLabelValues returns all unique, non-empty values observed for a specific label key.
+func (c *Cache) UniqueLabelValues(label string) []string {
+	label = strings.TrimSpace(label)
+	if label == "" {
+		return nil
+	}
+
+	values := make(map[string]struct{})
+	c.podLabels.Range(func(_, value interface{}) bool {
+		labels := value.(map[string]string)
+		if v := strings.TrimSpace(labels[label]); v != "" {
+			values[v] = struct{}{}
+		}
+		return true
+	})
+
+	if len(values) == 0 {
+		return nil
+	}
+
+	result := make([]string, 0, len(values))
+	for v := range values {
+		result = append(result, v)
+	}
+	sort.Strings(result)
+	return result
 }
 
 // StorePodLabels stores a defensive copy of the provided labels.

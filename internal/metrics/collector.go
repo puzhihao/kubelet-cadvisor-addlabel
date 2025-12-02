@@ -118,6 +118,15 @@ func (c *Collector) Collect(ctx context.Context, addLabels, labelDefaults string
 	if len(failures) > 0 {
 		payload = annotateFailures(payload, failures)
 	}
+
+	relationMetrics := buildRelationMetrics(c.service, splitLabels(addLabels))
+	if relationMetrics != "" {
+		if !strings.HasSuffix(payload, "\n") {
+			payload += "\n"
+		}
+		payload += relationMetrics
+	}
+
 	klog.InfoS(
 		"cadvisor scrape completed",
 		"successes", len(results),

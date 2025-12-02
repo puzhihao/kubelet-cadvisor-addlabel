@@ -86,6 +86,11 @@ func (s *Service) PodLabels(namespace, podName string) map[string]string {
 	return cloneStringMap(pod.Labels)
 }
 
+// UniqueLabelValues returns all unique cached values for the provided label key.
+func (s *Service) UniqueLabelValues(label string) []string {
+	return s.cache.UniqueLabelValues(label)
+}
+
 func (s *Service) registerHandlers() {
 	s.nodeInformer.AddEventHandler(newNodeEventHandler(s.cache))
 	s.podInformer.AddEventHandler(newPodEventHandler(s.cache))
